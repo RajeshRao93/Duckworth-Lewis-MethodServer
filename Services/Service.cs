@@ -1,15 +1,153 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Web;
+using System;
+using DLMethodServer.Models;
 
-namespace DLMethodServer.Controllers
+namespace DLMethodServer.Services 
 {
-    // Resource percentile WRT balls and wickets
-    public class PercentileConversion
+    public static class Service 
     {
-        //Gets the resources left WRT balls bowled and wickets lost
+
+        public static int caluculateTargetScore(Inning1 inn1, Inning2 inn2)
+        {
+             ////*********************Target score calculation**************************////
+            if (inn2.resourceR2 > inn1.resourceR1)
+            {
+                float target = inn1.scoredRuns + 245 * (inn2.resourceR2 - inn1.resourceR1) / 100 + 1;
+                inn2.targetScore = (int)target;
+            }
+            else if (inn2.resourceR2 < inn1.resourceR1)
+            {
+                float target = inn1.scoredRuns * (inn2.resourceR2 / inn1.resourceR1) + 1;
+                inn2.targetScore = (int)target;
+            }
+            else
+            {
+                inn2.targetScore = inn1.scoredRuns + 1;
+            }
+
+            return inn2.targetScore;
+        }
+
+        // Converts overs to balls
+        public static int getBalls(double input)
+        {
+
+            int wholePart = (int)input;
+            float floatValue;
+            string decimal_places = "";
+            double overs;
+            string str1 = input.ToString();
+            var regex = new System.Text.RegularExpressions.Regex("(?<=[\\.])[0-9]+");
+            if (regex.IsMatch(str1))
+            {
+                decimal_places = regex.Match(str1).Value;
+                floatValue = float.Parse(decimal_places[0].ToString(), System.Globalization.CultureInfo.InvariantCulture.NumberFormat);
+            }
+            else
+            {
+                floatValue = 0;
+            }
+
+            overs = input;
+
+            if (floatValue == 6)
+            {
+                wholePart++;
+                overs = (int)input + 1;
+                floatValue = 0;
+                //System.err.println("incorrect cricket values Resetting values to" + this.input);
+            }
+
+
+            return (int)((wholePart * 6) + (floatValue * 1));
+
+        }
+
+        //Calculating the resources of both innings
+        //Can be made generic! I am just too lazy for that now. If its working don't touch it!!
+        public static int CaluclateResourcesAndTarget(List<Inning> request)
+        {
+            Inning1 in1 = new Inning1();
+            Inning2 in2 = new Inning2();
+
+            //********************Inning 1*********************************
+            bool isInning1Interrupted = false;
+            in1.oversAtStartN = request[0].initialOvers_1;
+            in1.resourceAtStart = getPercentile(getBalls(in1.oversAtStartN), 0);
+            for (int i = 0; i < request[0].interruptions_1.Count; i++)
+            {
+                interrption.ballsLeft = getBalls(request[0].interruptions_1[i].oversLeft);
+                interrption.wicketsLost = request[0].interruptions_1[i].wicketsLost;
+                interrption.oversLost = request[0].interruptions_1[i].oversLost;
+
+                if (interrption.oversLost != 0)
+                {
+                    in1.resourceAtSuspension = getPercentile(interrption.ballsLeft, interrption.wicketsLost);
+                    int ballsRemaining = interrption.ballsLeft - getBalls(interrption.oversLost);
+                    in1.resourceAtResumption = getPercentile(ballsRemaining, interrption.wicketsLost);
+                }
+
+               // in1.resourceAtStart = PercentileConversion.getPercentile(interrption.getBalls(in1.oversAtStartN), 0);
+                in1.resourceR1 = in1.resourceAtStart - (in1.resourceAtSuspension - in1.resourceAtResumption);
+                in1.resourceAtStart = in1.resourceR1;
+                isInning1Interrupted = true;
+            }
+
+            in1.resourceR1 = isInning1Interrupted == true ? in1.resourceR1 : in1.resourceAtStart;
+            in1.scoredRuns = request[0].runsScored_1;
+
+            //********************Inning 2*********************************
+            bool isInning2Interrupted = false;
+            in2.ballsAtStartN = getBalls(request[1].initialOvers_2);
+            in2.resourceAtStart = getPercentile(in2.ballsAtStartN, 0);
+
+            for (int j = 0; j < request[1].interruptions_2.Count; j++)
+            {
+                interrption.ballsLeft = getBalls(request[1].interruptions_2[j].oversLeft);
+                interrption.wicketsLost = request[1].interruptions_2[j].wicketsLost; ;
+                interrption.oversLost = request[1].interruptions_2[j].oversLost;
+
+                if (interrption.oversLost != 0)
+                {
+                    in2.resourceAtSuspension = getPercentile(interrption.ballsLeft, interrption.wicketsLost);
+                    int ballsRemaining = interrption.ballsLeft - getBalls(interrption.oversLost);
+                    in2.resourceAtResumption = getPercentile(ballsRemaining, interrption.wicketsLost);
+                }
+
+                in2.resourceR2 = in2.resourceAtStart - (in2.resourceAtSuspension - in2.resourceAtResumption);
+                in2.resourceAtStart = in2.resourceR2;
+                isInning2Interrupted = true;
+            }
+
+            in2.resourceR2 = isInning2Interrupted == true ? in2.resourceR2 : in2.resourceAtStart;
+            int targetScore = caluculateTargetScore(in1, in2);
+
+            return targetScore;
+        }
+
+        //Calculating the par score of team batting second
+        public int CalculateParScore(List<Inning> request)
+        {
+            CaluclateResources(request);
+            //Console.WriteLine("Enter the overs left for Team2 and wickets lost so far in the order");
+            int ballsLeft = getBalls(request[1].oversLeftAtTermination_2);
+            int wicketLost = request[1].wicketsLostAtTermination_2;
+            float resourceRemaining = getPercentile(ballsLeft, wicketLost);
+            float resourcesUsed = in2.resourceR2 - resourceRemaining;
+            int parScore = 0;
+            if (resourcesUsed > in1.resourceR1)
+            {
+                float target = in1.scoredRuns + 245 * (resourcesUsed - in1.resourceR1) / 100;
+                parScore = (int)target;
+            }
+            else if (resourcesUsed < in1.resourceR1)
+            {
+                float target = in1.scoredRuns * (resourcesUsed / in1.resourceR1);
+                parScore = (int)target;
+            }
+
+            return parScore;
+        }
+
         public static float getPercentile(int balls, int wickets)
         {
             Dictionary<int, string> constants = new Dictionary<int, string>();

@@ -6,7 +6,7 @@ namespace DLMethodServer.Services
     public static class Service 
     {
 
-        public static int caluculateTargetScore(Inning1 inn1, Inning2 inn2)
+        public static int CaluculateTargetScore(Inning1 inn1, Inning2 inn2)
         {
              ////*********************Target score calculation**************************////
             if (inn2.resourceR2 > inn1.resourceR1)
@@ -28,14 +28,14 @@ namespace DLMethodServer.Services
         }
 
         // Converts overs to balls
-        public static int getBalls(double input)
+        public static int GetBalls(double oversLeft)
         {
 
-            int wholePart = (int)input;
+            int wholePart = (int)oversLeft;
             float floatValue;
             string decimal_places = "";
             double overs;
-            string str1 = input.ToString();
+            string str1 = oversLeft.ToString();
             var regex = new System.Text.RegularExpressions.Regex("(?<=[\\.])[0-9]+");
             if (regex.IsMatch(str1))
             {
@@ -47,16 +47,14 @@ namespace DLMethodServer.Services
                 floatValue = 0;
             }
 
-            overs = input;
+            overs = oversLeft;
 
             if (floatValue == 6)
             {
                 wholePart++;
-                overs = (int)input + 1;
+                overs = (int)oversLeft + 1;
                 floatValue = 0;
-                //System.err.println("incorrect cricket values Resetting values to" + this.input);
             }
-
 
             return (int)((wholePart * 6) + (floatValue * 1));
 
@@ -64,52 +62,51 @@ namespace DLMethodServer.Services
 
         //Calculating the resources of both innings
         //Can be made generic! I am just too lazy for that now. If its working don't touch it!!
-        public static int CaluclateResourcesAndTarget(List<Inning> request)
+        public static int CaluclateResourcesAndTarget(List<Inning> innings)
         {
             Inning1 in1 = new Inning1();
             Inning2 in2 = new Inning2();
 
             //********************Inning 1*********************************
             bool isInning1Interrupted = false;
-            in1.oversAtStartN = request[0].initialOvers_1;
-            in1.resourceAtStart = getPercentile(getBalls(in1.oversAtStartN), 0);
-            for (int i = 0; i < request[0].interruptions_1.Count; i++)
+            in1.oversAtStartN = innings[0].initialOvers_1;
+            in1.resourceAtStart = getPercentile(GetBalls(in1.oversAtStartN), 0);
+            for (int i = 0; i < innings[0].interruptions_1.Count; i++)
             {
-                interrption.ballsLeft = getBalls(request[0].interruptions_1[i].oversLeft);
-                interrption.wicketsLost = request[0].interruptions_1[i].wicketsLost;
-                interrption.oversLost = request[0].interruptions_1[i].oversLost;
+                interrption.ballsLeft = GetBalls(innings[0].interruptions_1[i].oversLeft);
+                interrption.wicketsLost = innings[0].interruptions_1[i].wicketsLost;
+                interrption.oversLost = innings[0].interruptions_1[i].oversLost;
 
                 if (interrption.oversLost != 0)
                 {
                     in1.resourceAtSuspension = getPercentile(interrption.ballsLeft, interrption.wicketsLost);
-                    int ballsRemaining = interrption.ballsLeft - getBalls(interrption.oversLost);
+                    int ballsRemaining = interrption.ballsLeft - GetBalls(interrption.oversLost);
                     in1.resourceAtResumption = getPercentile(ballsRemaining, interrption.wicketsLost);
                 }
 
-               // in1.resourceAtStart = PercentileConversion.getPercentile(interrption.getBalls(in1.oversAtStartN), 0);
                 in1.resourceR1 = in1.resourceAtStart - (in1.resourceAtSuspension - in1.resourceAtResumption);
                 in1.resourceAtStart = in1.resourceR1;
                 isInning1Interrupted = true;
             }
 
             in1.resourceR1 = isInning1Interrupted == true ? in1.resourceR1 : in1.resourceAtStart;
-            in1.scoredRuns = request[0].runsScored_1;
+            in1.scoredRuns = innings[0].runsScored_1;
 
             //********************Inning 2*********************************
             bool isInning2Interrupted = false;
-            in2.ballsAtStartN = getBalls(request[1].initialOvers_2);
+            in2.ballsAtStartN = GetBalls(innings[1].initialOvers_2);
             in2.resourceAtStart = getPercentile(in2.ballsAtStartN, 0);
 
-            for (int j = 0; j < request[1].interruptions_2.Count; j++)
+            for (int j = 0; j < innings[1].interruptions_2.Count; j++)
             {
-                interrption.ballsLeft = getBalls(request[1].interruptions_2[j].oversLeft);
-                interrption.wicketsLost = request[1].interruptions_2[j].wicketsLost; ;
-                interrption.oversLost = request[1].interruptions_2[j].oversLost;
+                interrption.ballsLeft = GetBalls(innings[1].interruptions_2[j].oversLeft);
+                interrption.wicketsLost = innings[1].interruptions_2[j].wicketsLost; ;
+                interrption.oversLost = innings[1].interruptions_2[j].oversLost;
 
                 if (interrption.oversLost != 0)
                 {
                     in2.resourceAtSuspension = getPercentile(interrption.ballsLeft, interrption.wicketsLost);
-                    int ballsRemaining = interrption.ballsLeft - getBalls(interrption.oversLost);
+                    int ballsRemaining = interrption.ballsLeft - GetBalls(interrption.oversLost);
                     in2.resourceAtResumption = getPercentile(ballsRemaining, interrption.wicketsLost);
                 }
 
@@ -119,7 +116,7 @@ namespace DLMethodServer.Services
             }
 
             in2.resourceR2 = isInning2Interrupted == true ? in2.resourceR2 : in2.resourceAtStart;
-            int targetScore = caluculateTargetScore(in1, in2);
+            int targetScore = CaluculateTargetScore(in1, in2);
 
             return targetScore;
         }
@@ -129,7 +126,7 @@ namespace DLMethodServer.Services
         {
             CaluclateResources(request);
             //Console.WriteLine("Enter the overs left for Team2 and wickets lost so far in the order");
-            int ballsLeft = getBalls(request[1].oversLeftAtTermination_2);
+            int ballsLeft = GetBalls(request[1].oversLeftAtTermination_2);
             int wicketLost = request[1].wicketsLostAtTermination_2;
             float resourceRemaining = getPercentile(ballsLeft, wicketLost);
             float resourcesUsed = in2.resourceR2 - resourceRemaining;

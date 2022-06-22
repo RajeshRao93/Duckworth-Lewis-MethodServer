@@ -8,13 +8,13 @@ using System.Web.Http.Cors;
 namespace DLMethodServer.Controllers
 {
     [EnableCors(origins: "*", headers: "*", methods: "*")]
-    [RoutePrefix("api/updatedata")]
-    public class UpdateDataController : ApiController
+    [RoutePrefix("api/uploaddata")]
+    public class UploadDataController : ApiController
     {
      
-        [Route("updateodidata")]
+        [Route("uploadodidata")]
         [HttpPost]
-        public IHttpActionResult UpdateOdiData([FromBody]MatchData request)
+        public IHttpActionResult UploadOdiData([FromBody]MatchData request)
         {
             try
             {                
@@ -38,12 +38,13 @@ namespace DLMethodServer.Controllers
             return Ok(new Response() { value = "Data added Successfully" });
         }
 
-        [Route("updatet20data")]
+        [Route("uploadt20data")]
         [HttpPost]
-        public IHttpActionResult Updatet20Data([FromBody]MatchData request)
+        public IHttpActionResult Uploadt20Data([FromBody]MatchData request)
         {
             try
             {
+                // uploading the file to local system.
                 string filePath = @"F:\Masters\Winter\ARPB\DLMethodServer\DLMethodServer\Data\t20.csv";               
 
                 var csv = new StringBuilder();

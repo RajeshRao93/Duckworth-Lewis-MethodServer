@@ -17,20 +17,20 @@ namespace DLMethodServer.Controllers
     [RoutePrefix("api/dlmethod")]
     public class DLMethodController : ApiController
     {       
-        [Route("gettargetscore")]
+        [Route("calculatetargetscore")]
         [HttpPost]
         // API to get the target score due to any interruption
-        public IHttpActionResult GetTargerScore([FromBody]List<Inning> request)
+        public IHttpActionResult CalculateTargetScore([FromBody]List<Inning> request)
         {  
             int targetScore = Service.CaluclateResourcesAndTarget(request);
 
             return Ok(new Response() { value = targetScore.ToString() });            
         }
 
-        [Route("getparscore")]
+        [Route("calculateparscore")]
         [HttpPost]
         // API to get the Par score in case of match termination in between
-        public IHttpActionResult GetParScore([FromBody]List<Inning> request)
+        public IHttpActionResult CalculateParScore([FromBody]List<Inning> request)
         {                                      
             int parscore = Service.CalculateParScore(request);
             
